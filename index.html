@@ -13,20 +13,22 @@
     background-image: radial-gradient(circle, #d8d8d8 1px, transparent 1px);
     background-size: 22px 22px;
     color: #1a1a1a;
-    min-height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 28px 16px 32px;
+    padding: 16px 16px 12px;
+    gap: 10px;
   }
 
   h1 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: #888880;
-    margin-bottom: 20px;
+    color: #BBBBB5;
     text-transform: uppercase;
+    flex-shrink: 0;
   }
 
   /* ── Toggle ── */
@@ -38,9 +40,9 @@
     border: 1px solid #E4E4DF;
     border-radius: 40px;
     padding: 6px 18px;
-    margin-bottom: 24px;
     user-select: none;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    flex-shrink: 0;
   }
   .mode-label { font-size: 0.92rem; font-weight: 600; transition: color 0.2s; }
   .mode-label.active   { color: #1a1a1a; }
@@ -68,7 +70,7 @@
   .score-bar {
     display: flex;
     gap: 32px;
-    margin-bottom: 24px;
+    flex-shrink: 0;
   }
   .score-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .score-num  { font-size: 1.6rem; font-weight: 700; }
@@ -83,10 +85,13 @@
     border: 1px solid #E4E4DF;
     border-radius: 24px;
     width: 100%; max-width: 420px;
-    padding: 40px 28px 32px;
-    display: flex; flex-direction: column; align-items: center; gap: 28px;
+    padding: 28px 28px 24px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: space-evenly;
     position: relative; overflow: hidden;
     box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+    flex: 1;
+    min-height: 0;
   }
   .card::before {
     content: '';
@@ -127,7 +132,7 @@
   }
 
   .btn {
-    height: 108px;
+    height: clamp(88px, 12vh, 112px);
     background: #fcfcfc;
     border: 1.5px solid #E4E4DF;
     border-radius: 16px;
@@ -138,6 +143,26 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 7px; padding: 10px;
+    position: relative;
+  }
+
+  /* ── Keyboard hint badge ── */
+  .btn-key {
+    position: absolute;
+    bottom: 6px; right: 7px;
+    min-width: 18px; height: 18px;
+    background: #F0F0EC;
+    border: 1px solid #E0E0DA;
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: #AAAAAA;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    letter-spacing: 0;
+    pointer-events: none;
+    font-family: 'Segoe UI', system-ui, sans-serif;
   }
   .btn-romaji {
     font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; color: #1a1a1a;
@@ -183,7 +208,7 @@
   .next-btn:active  { transform: translateY(0); }
 
   /* ── Progress ── */
-  .progress-wrap { width: 100%; max-width: 420px; margin-top: 16px; }
+  .progress-wrap { width: 100%; max-width: 420px; flex-shrink: 0; }
   .progress-bar-bg { height: 3px; background: #E4E4DF; border-radius: 2px; overflow: hidden; }
   .progress-bar-fill {
     height: 100%;
@@ -231,7 +256,7 @@
     <div class="feedback" id="feedback"></div>
   </div>
   <div class="answers" id="answers"></div>
-  <button class="next-btn" id="next-btn">Next →</button>
+  <button class="next-btn" id="next-btn">Next ↵</button>
 </div>
 
 <div class="progress-wrap">
@@ -331,7 +356,7 @@ function renderQuestion() {
   }, 150);
 
   answersEl.innerHTML = '';
-  options.forEach(opt => {
+  options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'btn';
     btn.dataset.romaji = opt.romaji;
@@ -345,8 +370,13 @@ function renderQuestion() {
     kanaSpan.textContent = opt.kana;
     hideKana(kanaSpan);
 
+    const keyBadge = document.createElement('span');
+    keyBadge.className = 'btn-key';
+    keyBadge.textContent = i + 1;
+
     btn.appendChild(romajiSpan);
     btn.appendChild(kanaSpan);
+    btn.appendChild(keyBadge);
     btn.addEventListener('click', () => handleAnswer(btn, opt.romaji));
     answersEl.appendChild(btn);
   });
@@ -392,6 +422,17 @@ function updateScore() {
 }
 
 nextBtn.addEventListener('click', renderQuestion);
+
+document.addEventListener('keydown', e => {
+  if (e.key >= '1' && e.key <= '4') {
+    const idx = parseInt(e.key) - 1;
+    const btns = Array.from(answersEl.querySelectorAll('.btn:not(:disabled)'));
+    if (btns[idx]) btns[idx].click();
+  }
+  if (e.key === 'Enter') {
+    if (nextBtn.classList.contains('visible')) nextBtn.click();
+  }
+});
 
 modeSwitch.addEventListener('change', () => {
   mode = modeSwitch.checked ? 'katakana' : 'hiragana';
