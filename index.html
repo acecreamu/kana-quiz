@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kana Quiz</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: #fcfcfc;
+    background-image: radial-gradient(circle, #d8d8d8 1px, transparent 1px);
+    background-size: 22px 22px;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 32px;
+  }
+
+  h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #888880;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+
+  /* ── Toggle ── */
+  .mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid #E4E4DF;
+    border-radius: 40px;
+    padding: 6px 18px;
+    margin-bottom: 24px;
+    user-select: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .mode-label { font-size: 0.92rem; font-weight: 600; transition: color 0.2s; }
+  .mode-label.active   { color: #1a1a1a; }
+  .mode-label.inactive { color: #BBBBB5; }
+
+  .switch { position: relative; width: 50px; height: 26px; cursor: pointer; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0;
+    background: #E4E4DF; border-radius: 26px; transition: background 0.3s;
+  }
+  .slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 4px; top: 4px;
+    background: #1a1a1a;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+  .switch input:checked + .slider { background: #E4E4DF; }
+  .switch input:checked + .slider::before { transform: translateX(24px); }
+
+  /* ── Score ── */
+  .score-bar {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 24px;
+  }
+  .score-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .score-num  { font-size: 1.6rem; font-weight: 700; }
+  .score-label{ color: #AAAAA4; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+  .score-correct .score-num { color: #2EA87A; }
+  .score-wrong   .score-num { color: #E05050; }
+  .score-streak  .score-num { color: #D4821A; }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border: 1px solid #E4E4DF;
+    border-radius: 24px;
+    width: 100%; max-width: 420px;
+    padding: 40px 28px 32px;
+    display: flex; flex-direction: column; align-items: center; gap: 28px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+  }
+  .card::before {
+    content: '';
+    position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(26,26,26,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── Big kana ── */
+  .kana-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .kana-char {
+    font-size: 6rem; line-height: 1; color: #1a1a1a;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .kana-char.flip { transform: scale(0.6); opacity: 0; }
+  .kana-type {
+    font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.12em; color: #BBBBB5; font-weight: 500;
+  }
+  .feedback {
+    height: 28px; margin-top: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 600;
+    border-radius: 8px; padding: 0 14px;
+    transition: opacity 0.2s; opacity: 0;
+  }
+  .feedback.show    { opacity: 1; }
+  .feedback.correct { color: #2EA87A; background: #EAF7F1; }
+  .feedback.wrong   { color: #E05050; background: #FDF0F0; }
+
+  /* ── Answer grid ── */
+  .answers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .btn {
+    height: 108px;
+    background: #fcfcfc;
+    border: 1.5px solid #E4E4DF;
+    border-radius: 16px;
+    color: #1a1a1a;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 7px; padding: 10px;
+  }
+  .btn-romaji {
+    font-size: 1.4rem; font-weight: 700; letter-spacing: 0.04em; color: #1a1a1a;
+  }
+  .btn-kana {
+    font-size: 1.3rem; font-weight: 300; line-height: 1; color: #888880;
+    /* visibility controlled by JS */
+  }
+
+  .btn:hover:not(:disabled) {
+    background: #EFEFEB; border-color: #BBBBB5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { cursor: default; }
+
+  .btn.correct-ans {
+    background: #EAF7F1; border-color: #2EA87A; color: #2EA87A;
+  }
+  .btn.correct-ans .btn-romaji,
+  .btn.correct-ans .btn-kana { color: #2EA87A; }
+
+  .btn.wrong-ans {
+    background: #FDF0F0; border-color: #E05050; color: #E05050;
+  }
+  .btn.wrong-ans .btn-romaji,
+  .btn.wrong-ans .btn-kana { color: #E05050; }
+
+  /* ── Next button ── */
+  .next-btn {
+    padding: 13px 40px;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border: none; border-radius: 50px;
+    color: #fff; font-size: 1rem; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.06em;
+    transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    opacity: 0; pointer-events: none;
+  }
+  .next-btn.visible { opacity: 1; pointer-events: all; }
+  .next-btn:hover   { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.24); }
+  .next-btn:active  { transform: translateY(0); }
+
+  /* ── Progress ── */
+  .progress-wrap { width: 100%; max-width: 420px; margin-top: 16px; }
+  .progress-bar-bg { height: 3px; background: #E4E4DF; border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1a1a1a, #888880);
+    border-radius: 2px; transition: width 0.4s ease;
+  }
+  .progress-label {
+    font-size: 0.72rem; color: #BBBBB5; margin-top: 6px;
+    text-align: right; font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<h1>Kana Quiz</h1>
+
+<div class="mode-toggle">
+  <span class="mode-label active"  id="label-hira">Hiragana</span>
+  <label class="switch">
+    <input type="checkbox" id="mode-switch">
+    <span class="slider"></span>
+  </label>
+  <span class="mode-label inactive" id="label-kata">Katakana</span>
+</div>
+
+<div class="score-bar">
+  <div class="score-item score-correct">
+    <span class="score-num" id="score-correct">0</span>
+    <span class="score-label">Correct</span>
+  </div>
+  <div class="score-item score-wrong">
+    <span class="score-num" id="score-wrong">0</span>
+    <span class="score-label">Wrong</span>
+  </div>
+  <div class="score-item score-streak">
+    <span class="score-num" id="score-streak">0</span>
+    <span class="score-label">Streak</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="kana-wrap">
+    <div class="kana-char" id="kana-char">あ</div>
+    <div class="kana-type" id="kana-type">Hiragana</div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+  <div class="answers" id="answers"></div>
+  <button class="next-btn" id="next-btn">Next →</button>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="progress-label" id="progress-label">0 answered</div>
+</div>
+
+<script>
+const HIRAGANA = [
+  ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],
+  ['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
+  ['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so'],
+  ['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to'],
+  ['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no'],
+  ['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho'],
+  ['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo'],
+  ['や','ya'],['ゆ','yu'],['よ','yo'],
+  ['ら','ra'],['り','ri'],['る','ru'],['れ','re'],['ろ','ro'],
+  ['わ','wa'],['を','wo'],['ん','n']
+];
+
+const KATAKANA = [
+  ['ア','a'],['イ','i'],['ウ','u'],['エ','e'],['オ','o'],
+  ['カ','ka'],['キ','ki'],['ク','ku'],['ケ','ke'],['コ','ko'],
+  ['サ','sa'],['シ','shi'],['ス','su'],['セ','se'],['ソ','so'],
+  ['タ','ta'],['チ','chi'],['ツ','tsu'],['テ','te'],['ト','to'],
+  ['ナ','na'],['ニ','ni'],['ヌ','nu'],['ネ','ne'],['ノ','no'],
+  ['ハ','ha'],['ヒ','hi'],['フ','fu'],['ヘ','he'],['ホ','ho'],
+  ['マ','ma'],['ミ','mi'],['ム','mu'],['メ','me'],['モ','mo'],
+  ['ヤ','ya'],['ユ','yu'],['ヨ','yo'],
+  ['ラ','ra'],['リ','ri'],['ル','ru'],['レ','re'],['ロ','ro'],
+  ['ワ','wa'],['ヲ','wo'],['ン','n']
+];
+
+let mode = 'hiragana';
+let current = null;
+let answered = 0, correct = 0, wrong = 0, streak = 0;
+let locked = false;
+
+const kanaCharEl = document.getElementById('kana-char');
+const kanaTypeEl = document.getElementById('kana-type');
+const answersEl  = document.getElementById('answers');
+const feedbackEl = document.getElementById('feedback');
+const nextBtn    = document.getElementById('next-btn');
+const modeSwitch = document.getElementById('mode-switch');
+const labelHira  = document.getElementById('label-hira');
+const labelKata  = document.getElementById('label-kata');
+
+function getSet() { return mode === 'hiragana' ? HIRAGANA : KATAKANA; }
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickOptions() {
+  const set = getSet();
+  const idx  = Math.floor(Math.random() * set.length);
+  current = { kana: set[idx][0], romaji: set[idx][1] };
+  const others = shuffle(set.filter((_, i) => i !== idx))
+                   .slice(0, 3)
+                   .map(x => ({ kana: x[0], romaji: x[1] }));
+  return shuffle([{ kana: current.kana, romaji: current.romaji }, ...others]);
+}
+
+function hideKana(el) {
+  el.style.opacity   = '0';
+  el.style.transform = 'scale(0.5)';
+  el.style.transition = 'none';
+}
+
+function revealKana(el, delay) {
+  el.style.transition = `opacity 0.22s ease ${delay}ms, transform 0.22s ease ${delay}ms`;
+  el.style.opacity    = '1';
+  el.style.transform  = 'scale(1)';
+}
+
+function renderQuestion() {
+  locked = false;
+  feedbackEl.className = 'feedback';
+  feedbackEl.textContent = '';
+  nextBtn.classList.remove('visible');
+
+  const options = pickOptions();
+
+  kanaCharEl.classList.add('flip');
+  setTimeout(() => {
+    kanaCharEl.textContent = current.kana;
+    kanaTypeEl.textContent = mode === 'hiragana' ? 'Hiragana' : 'Katakana';
+    kanaCharEl.classList.remove('flip');
+  }, 150);
+
+  answersEl.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.dataset.romaji = opt.romaji;
+
+    const romajiSpan = document.createElement('span');
+    romajiSpan.className = 'btn-romaji';
+    romajiSpan.textContent = opt.romaji;
+
+    const kanaSpan = document.createElement('span');
+    kanaSpan.className = 'btn-kana';
+    kanaSpan.textContent = opt.kana;
+    hideKana(kanaSpan);
+
+    btn.appendChild(romajiSpan);
+    btn.appendChild(kanaSpan);
+    btn.addEventListener('click', () => handleAnswer(btn, opt.romaji));
+    answersEl.appendChild(btn);
+  });
+}
+
+function handleAnswer(btn, chosen) {
+  if (locked) return;
+  locked = true;
+  answered++;
+
+  const btns = Array.from(answersEl.querySelectorAll('.btn'));
+  btns.forEach(b => b.disabled = true);
+
+  btns.forEach((b, i) => revealKana(b.querySelector('.btn-kana'), i * 55));
+
+  if (chosen === current.romaji) {
+    btn.classList.add('correct-ans');
+    feedbackEl.textContent = '✓ Correct!';
+    feedbackEl.className = 'feedback show correct';
+    correct++; streak++;
+  } else {
+    btn.classList.add('wrong-ans');
+    btns.forEach(b => {
+      if (b.dataset.romaji === current.romaji) b.classList.add('correct-ans');
+    });
+    feedbackEl.textContent = `✗ It was "${current.romaji}"`;
+    feedbackEl.className = 'feedback show wrong';
+    wrong++; streak = 0;
+  }
+
+  updateScore();
+  nextBtn.classList.add('visible');
+}
+
+function updateScore() {
+  document.getElementById('score-correct').textContent = correct;
+  document.getElementById('score-wrong').textContent   = wrong;
+  document.getElementById('score-streak').textContent  = streak;
+  const pct = Math.min(100, Math.round((correct / Math.max(1, answered)) * 100));
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent =
+    answered + ' answered · ' + pct + '% accuracy';
+}
+
+nextBtn.addEventListener('click', renderQuestion);
+
+modeSwitch.addEventListener('change', () => {
+  mode = modeSwitch.checked ? 'katakana' : 'hiragana';
+  labelHira.className = 'mode-label ' + (mode === 'hiragana' ? 'active' : 'inactive');
+  labelKata.className = 'mode-label ' + (mode === 'katakana' ? 'active' : 'inactive');
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+</body>
+</html>
